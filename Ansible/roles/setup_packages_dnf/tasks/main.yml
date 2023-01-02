@@ -1,0 +1,13 @@
+---
+- name: Update dnf packages
+  become: true
+  dnf:
+    name: "*"
+    state: latest
+  when: update_packages == true
+
+- name: Autoremove unneeded dnf packages installed as dependencies
+  become: true
+  dnf:
+    autoremove: yes
+  when: update_packages == true

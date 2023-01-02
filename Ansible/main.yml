@@ -1,0 +1,14 @@
+---
+- name: Setup users and login security stuff
+  hosts: all
+  gather_facts: false
+  roles:
+    - setup_users
+
+- name: Setup packages
+  hosts: all
+  roles:
+    - name: setup_packages_apt
+      when: ansible_distribution == "Debian"
+    - name: setup_packages_dnf
+      when: ansible_distribution == "Fedora"

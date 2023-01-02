@@ -1,0 +1,11 @@
+---
+- name: Update and upgrade apt packages
+  become: true
+  apt:
+    upgrade: true
+    autoremove: true
+    autoclean: true
+    update_cache: true
+    cache_valid_time: 3600 # One hour
+  when: update_packages == true
+  

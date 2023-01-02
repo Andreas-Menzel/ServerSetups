@@ -1,0 +1,163 @@
+---
+########## CHECK PERMISSIONS AND CHANGE TO initial_user IF NECESSARY ###########
+
+- name: Set current user to automation
+  set_fact:
+    ansible_user: "{{ automation_user }}"
+
+- name: Check if can authenticate with automation user
+  ping:
+  ignore_unreachable: true
+  register: check_automation_login
+
+- name: Soothing message (if unreachable)
+  debug:
+    msg: >
+          The server is unreachable. If this is a new server setup, then this is
+          is fine. Now trying to ssh with initial user and initial password.
+          If this also fails, then the server is really unreachable.
+  when: check_automation_login.unreachable is defined and check_automation_login.unreachable == true
+
+- name: Set current user to initial user (if unreachable)
+  set_fact:
+    ansible_user: "{{ initial_user }}"
+    ansible_ssh_pass: "{{ initial_pass }}"
+  when: check_automation_login.unreachable is defined and check_automation_login.unreachable == true
+
+- name: Gathering facts
+  gather_facts:
+
+################### SET sudoers_group BASED ON DISTRIBUTION ####################
+
+- name: Set fact sudoers_group if on Debian
+  set_fact:
+    sudoers_group: sudo
+  when: ansible_distribution == "Debian"
+
+- name: Set fact sudoers_group if on Fedora
+  set_fact:
+    sudoers_group: wheel
+  when: ansible_distribution == "Fedora"
+
+############################## SETUP initial_user ##############################
+
+- name: Add ssh-keys to authorized_keys of initial user (from files)
+  become: true
+  authorized_key:
+    user: "{{ initial_user }}"
+    key: "{{ lookup('file', item) }}"
+    manage_dir: true
+  with_items: "{{ ssh_keys.files }}"
+  when: ssh_keys.files is defined
+
+- name: Add ssh-keys to authorized_keys of initial user (from strings)
+  become: true
+  authorized_key:
+    user: "{{ initial_user }}"
+    key: "{{ item }}"
+    manage_dir: true
+  with_items: "{{ ssh_keys.strings }}"
+  when: ssh_keys.strings is defined
+
+############################### SETUP main_user ################################
+
+- name: Create main user and add to sudoers
+  become: true
+  user:
+    name: "{{ main_user }}"
+    state: present
+    password: "*"
+    groups: "{{ sudoers_group }}"
+    append: true
+    shell: /bin/bash
+    
+- name: Add ssh-keys to authorized_keys of main user (from files)
+  become: true
+  authorized_key:
+    user: "{{ main_user }}"
+    key: "{{ lookup('file', item) }}"
+    manage_dir: true
+  with_items: "{{ ssh_keys.files }}"
+  when: ssh_keys.files is defined
+
+- name: Add ssh-keys to authorized_keys of main user (from strings)
+  become: true
+  authorized_key:
+    user: "{{ main_user }}"
+    key: "{{ item }}"
+    manage_dir: true
+  with_items: "{{ ssh_keys.strings }}"
+  when: ssh_keys.strings is defined
+
+############################ SETUP automation_user #############################
+
+- name: Create automation user and add to sudoers
+  become: true
+  user:
+    name: "{{ automation_user }}"
+    state: present
+    password: "*"
+    groups: "{{ sudoers_group }}"
+    append: true
+    shell: /bin/bash
+    
+- name: Add ssh-keys to authorized_keys of automation user (from files)
+  become: true
+  authorized_key:
+    user: "{{ automation_user }}"
+    key: "{{ lookup('file', item) }}"
+    manage_dir: true
+  with_items: "{{ ssh_keys.files }}"
+  when: ssh_keys.files is defined
+
+- name: Add ssh-keys to authorized_keys of automation user (from strings)
+  become: true
+  authorized_key:
+    user: "{{ automation_user }}"
+    key: "{{ item }}"
+    manage_dir: true
+  with_items: "{{ ssh_keys.strings }}"
+  when: ssh_keys.strings is defined
+
+######################## SETUP LOGIN AND SECURITY STUFF ########################
+
+- name: Setup passwordless sudo
+  become: true
+  community.general.sudoers:
+    name: allow-all-sudo
+    state: present
+    group: sudo
+    commands: ALL
+    nopassword: true
+
+- name: Disable root login via ssh
+  become: true
+  lineinfile:
+    dest: /etc/ssh/sshd_config
+    regexp: "^PermitRootLogin"
+    line: "PermitRootLogin no"
+    state: present
+  register: disable_root_login
+    
+- name: Disable login with password via ssh
+  become: true
+  lineinfile:
+    dest: /etc/ssh/sshd_config
+    regexp: "^PasswordAuthentication"
+    line: "PasswordAuthentication no"
+    state: present
+  register: disable_password_auth
+
+- name: Restart sshd service
+  become: true
+  systemd:
+    name: sshd
+    state: restarted
+  when: disable_root_login.changed or disable_password_auth.changed
+
+#### CHANGE USER BACK TO automation_user IF PREVIOUSLY SET TO initial_user #####
+
+- name: Set current user to automation
+  set_fact:
+    ansible_user: "{{ automation_user }}"
+  when: ansible_user != automation_user
