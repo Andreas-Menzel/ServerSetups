@@ -60,8 +60,8 @@ copied to the *strings* list.
 
 ```
 ssh_keys:
-    files:
+  files:
     - "~/.ssh/id_rsa.pub"
-    strings:
+  strings:
     - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIG+rdql+syD1t4jW8G1VrZkLCq1WfE1lL6R0wcAGFr29"
 ```
