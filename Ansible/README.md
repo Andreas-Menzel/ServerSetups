@@ -9,8 +9,11 @@ how to call them.
 
 #### Note
 
-When calling this role, make sure to set `gather_facts: false` or else
-it will throw an error for the initial setup.
+- When calling this role, make sure to set `gather_facts: false` or else
+  it will throw an error for the initial setup.
+- This role is only compatible with Debian and Fedora systems. If you want to
+  use something else, you have to slightly modify the
+  `SET sudoers_group BASED ON DISTRIBUTION` section in the roles file.
 
 #### Description
 
@@ -20,11 +23,19 @@ have the automation user yet), it will connect with the initial user and the
 initial password. (At the end of this role, the user is switched back to the
 automation user)
 
-It will create a main user and an automation user (without a password). Both
+It will create an admin user and an automation user (without a password). Both
 users will be added to the sudoers group (*sudo* on Debian, *wheel* on Fedora).
 
-The specified ssh public keys will also be added to the authorized_keys of the
-initial user, the main user and the automation user.
+The ssh public keys of the admin user will be added to the authorized_keys of
+the admin user **and** the initial user.
+
+The ssh public keys for the automation user will be added to the authorized_keys
+of the automation user.
+
+The specified main users will be created and the ssh public key will be added to
+the authorized_keys of the respective user. Each user will be added to the
+specified groups and given root permissions if the `is_sudoer` variable is set
+to true.
 
 The role will enable passwordless sudo for the sudoers group and disable root
 login and login with password via ssh.
@@ -45,23 +56,98 @@ initial_user: "root"
 initial_pass: "InitialSecretP@ssword!"
 ```
 
+The admin user is intended for normal system administrator access or as a backup
+user with root access.
+
+```yml
+admin_user:
+  name: server
+  ssh_keys:
+    files:
+      - "~/.ssh/id_rsa.pub"
+      - "/path/to/other/public/key"
+    strings:
+      - "ssh-ed25519 KEY_1"
+      - "ssh-ed25519 KEY_2"
+      - "ssh-ed25519 KEY_3"
+```
+
 The automation user is used by Ansible (and is intended to be also used by
-other automation scripts). The main user is intended for normal system
-administrator access.
+other automation scripts). Make sure to add the key of the machine executing
+(this) Ansible playbook.
 
-```
-automation_user: "automation"
-main_user: "server"
+```yml
+automation_user:
+  name: automation
+  ssh_keys:
+    files:
+      - "~/.ssh/id_rsa.pub"
+      - "/path/to/other/public/key"
+    strings:
+      - "ssh-ed25519 KEY_1"
+      - "ssh-ed25519 KEY_2"
+      - "ssh-ed25519 KEY_3"
 ```
 
-The ssh public keys that will be added to the authorized_keys of "all" users
-(initial, main, automation) can be passed in as separate *files* or directly
-copied to the *strings* list.
+Now you can specify the main ("normal") users. If a user should have root
+permissions, ONLY set the `is_sudoer` variable to true (don't add the sudoers
+group manually).
 
+```yml
+users:
+  - name: user1
+    public_key: "ssh-ed25519 KEY"
+    is_sudoer: true
+    groups:
+      - "optional_group_1"
+      - "optional_group_2"
+  - name: user2
+    public_key: "ssh-ed25519 KEY"
+    is_sudoer: false
+    groups:
 ```
-ssh_keys:
-  files:
-    - "~/.ssh/id_rsa.pub"
-  strings:
-    - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIG+rdql+syD1t4jW8G1VrZkLCq1WfE1lL6R0wcAGFr29"
+
+### setup_packages_apt / setup_packages_dnf
+
+#### Description
+
+Installs (and updates) packages.
+
+#### Configuration
+
+You can select, if the packages should be updated:
+
+```yml
+update_packages: true
+```
+
+Select the packages to install:
+
+```yml
+packages:
+  - nano
+  - micro
+  - pip
+  - git
+  - curl
+```
+
+### install_golan
+
+#### Note
+
+GO will **not** be (re)installed, if it is already installed (`/usr/local/go`
+already exists). If you want to update GO, you have to manually uninstall GO,
+update the `go_version` variable and then execute this role.
+
+#### Description
+
+Downloads and installs GOlan.
+
+#### Configuration
+
+You can specify the version of GO:
+
+```yml
+go_version: 1.20.3
 ```

@@ -3,7 +3,7 @@
 
 - name: Set current user to automation
   set_fact:
-    ansible_user: "{{ automation_user }}"
+    ansible_user: "{{ automation_user.name }}"
 
 - name: Check if can authenticate with automation user
   ping:
@@ -14,7 +14,7 @@
   debug:
     msg: >
           The server is unreachable. If this is a new server setup, then this is
-          is fine. Now trying to ssh with initial user and initial password.
+          fine. Now trying to ssh with initial user and initial password.
           If this also fails, then the server is really unreachable.
   when: check_automation_login.unreachable is defined and check_automation_login.unreachable == true
 
@@ -41,60 +41,56 @@
 
 ############################## SETUP initial_user ##############################
 
-- name: Add ssh-keys to authorized_keys of initial user (from files)
+- name: Add ssh-keys (of admin user) to authorized_keys of initial user (from files)
   become: true
   authorized_key:
     user: "{{ initial_user }}"
     key: "{{ lookup('file', item) }}"
-    manage_dir: true
-  with_items: "{{ ssh_keys.files }}"
-  when: ssh_keys.files is defined
+  with_items: "{{ admin_user.ssh_keys.files }}"
+  when: admin_user.ssh_keys.files is defined
 
-- name: Add ssh-keys to authorized_keys of initial user (from strings)
+- name: Add ssh-keys (of admin user) to authorized_keys of initial user (from strings)
   become: true
   authorized_key:
     user: "{{ initial_user }}"
     key: "{{ item }}"
-    manage_dir: true
-  with_items: "{{ ssh_keys.strings }}"
-  when: ssh_keys.strings is defined
+  with_items: "{{ admin_user.ssh_keys.strings }}"
+  when: admin_user.ssh_keys.strings is defined
 
-############################### SETUP main_user ################################
+############################### SETUP admin_user ################################
 
-- name: Create main user and add to sudoers
+- name: Create admin user and add to sudoers
   become: true
   user:
-    name: "{{ main_user }}"
+    name: "{{ admin_user.name }}"
     state: present
     password: "*"
     groups: "{{ sudoers_group }}"
     append: true
     shell: /bin/bash
     
-- name: Add ssh-keys to authorized_keys of main user (from files)
+- name: Add ssh-keys to authorized_keys of admin user (from files)
   become: true
   authorized_key:
-    user: "{{ main_user }}"
+    user: "{{ admin_user.name }}"
     key: "{{ lookup('file', item) }}"
-    manage_dir: true
-  with_items: "{{ ssh_keys.files }}"
-  when: ssh_keys.files is defined
+  with_items: "{{ admin_user.ssh_keys.files }}"
+  when: admin_user.ssh_keys.files is defined
 
-- name: Add ssh-keys to authorized_keys of main user (from strings)
+- name: Add ssh-keys to authorized_keys of admin user (from strings)
   become: true
   authorized_key:
-    user: "{{ main_user }}"
+    user: "{{ admin_user.name }}"
     key: "{{ item }}"
-    manage_dir: true
-  with_items: "{{ ssh_keys.strings }}"
-  when: ssh_keys.strings is defined
+  with_items: "{{ admin_user.ssh_keys.strings }}"
+  when: admin_user.ssh_keys.strings is defined
 
 ############################ SETUP automation_user #############################
 
 - name: Create automation user and add to sudoers
   become: true
   user:
-    name: "{{ automation_user }}"
+    name: "{{ automation_user.name }}"
     state: present
     password: "*"
     groups: "{{ sudoers_group }}"
@@ -104,20 +100,38 @@
 - name: Add ssh-keys to authorized_keys of automation user (from files)
   become: true
   authorized_key:
-    user: "{{ automation_user }}"
+    user: "{{ automation_user.name }}"
     key: "{{ lookup('file', item) }}"
-    manage_dir: true
-  with_items: "{{ ssh_keys.files }}"
-  when: ssh_keys.files is defined
+  with_items: "{{ automation_user.ssh_keys.files }}"
+  when: automation_user.ssh_keys.files is defined
 
 - name: Add ssh-keys to authorized_keys of automation user (from strings)
   become: true
   authorized_key:
-    user: "{{ automation_user }}"
+    user: "{{ automation_user.name }}"
     key: "{{ item }}"
-    manage_dir: true
-  with_items: "{{ ssh_keys.strings }}"
-  when: ssh_keys.strings is defined
+  with_items: "{{ automation_user.ssh_keys.strings }}"
+  when: automation_user.ssh_keys.strings is defined
+
+############################### SETUP MAIN USERS ###############################
+
+- name: Create main users
+  become: true
+  user:
+    name: "{{ item.name }}"
+    state: present
+    password: "*"
+    groups: "{% if item.is_sudoer %}{% if item.groups %}{{ item.groups + [sudoers_group] }}{% else %}{{ sudoers_group }}{% endif %}{% else %}{{ item.groups }}{% endif %}"
+    append: false
+    create_home: true
+    shell: /bin/bash
+  with_items: "{{ users }}"
+- name: Add ssh-key to authorized_keys for each main user
+  become: true
+  authorized_key:
+    user: "{{ item.name }}"
+    key: "{{ item.public_key }}"
+  with_items: "{{ users }}"
 
 ######################## SETUP LOGIN AND SECURITY STUFF ########################
 
@@ -159,5 +173,5 @@
 
 - name: Set current user to automation
   set_fact:
-    ansible_user: "{{ automation_user }}"
-  when: ansible_user != automation_user
+    ansible_user: "{{ automation_user.name }}"
+  when: ansible_user != automation_user.name

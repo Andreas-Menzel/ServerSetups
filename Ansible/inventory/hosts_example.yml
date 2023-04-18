@@ -9,7 +9,7 @@ all:
     # Initial username and password when first installing the OS on the servers.
     # This user will not be used, if the automation user exists.
     initial_user: "root"
-    initial_pass: "j28S8g_3hdA"
+    initial_pass: "InitialP@ssword!"
 
     # The admin user can be used by the server admin or as a backup root user.
     admin_user:
@@ -18,7 +18,8 @@ all:
         files:
           - "~/.ssh/id_rsa.pub"
         strings:
-        #  - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIG+rdql+syD1t4jW8G1VrZkLCq1WfE1lL6R0wcAGFr29"
+          - "ssh-ed25519 KEY_1"
+          - "ssh-ed25519 KEY_2"
     
     # The automation user is used by Ansible and can also be used by other
     # automation tasks. This user also has root access.
@@ -30,30 +31,28 @@ all:
         files:
           - "~/.ssh/id_rsa.pub"
         strings:
-        #  - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIG+rdql+syD1t4jW8G1VrZkLCq1WfE1lL6R0wcAGFr29"
     
     # Main users
     # Want to be sudo? ONLY set the is_sudoer variable to true (don't add the
     # sudoers group manually).
     users:
-      - name: andreas
-        public_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIG+rdql+syD1t4jW8G1VrZkLCq1WfE1lL6R0wcAGFr29"
+      - name: user1
+        public_key: "ssh-ed25519 KEY"
         is_sudoer: true
         groups:
-      - name: sebastian
-        public_key: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDduOylG5F0mpjQkKZ0sv35SvsG04s6eV8uU2kXOmdBswNWy3AXm3EDPnqSQ6nwcQc1+xDWd+VAU3DiHN4Ge+a5s9bYW++nvAxMap3KIRv1ljt1VoqlSHHSZgMIbtonPfLWpUsTCDgM8gLI4j0GVjAhyjsvtFnOGV+li4CysvC4qcpgDhXG+mlK4p9bgkLZC/7/PteMU2PnuTHXmf8GSAJLntCk2Es9S8eJJi1Fj+KsYEZb85RPVtg3iFiMR2cJ0+mvhyLMJHAZ9bYqw2mHPgfSTMn5y5uTeY3q8u/sfnmPkfUAfUNElPPh3zL5K1R3maBf83YKMX0yoqulf6xGEj93 ssh-key-2023-04-03"
-        is_sudoer: true
+          - "group_1"
+          - "group_2"
+      - name: user2
+        public_key: "ssh-ed25519 KEY"
+        is_sudoer: false
         groups:
-
+    
     ############################################################################
     ################# SETUP_PACKAGES_APT && SETUP_PACKAGES_DNF #################
     ############################################################################
     packages:
       - nano
       - micro
-      - pip
-      - git
-      - curl
     update_packages: true
 
     ############################################################################
@@ -63,4 +62,7 @@ all:
 
   hosts:
     node1:
-      ansible_host: vps2.an-men.de
+      ansible_host: server1.example.com
+    
+    node2:
+      ansible_host: server2.example.com

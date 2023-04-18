@@ -1,0 +1,36 @@
+---
+- name: Check if Go is already installed
+  stat:
+    path: /usr/local/go
+  register: go_dir
+
+- name: Download and unarchive the Golan binary
+  become: true
+  unarchive:
+    src: "https://golang.org/dl/go{{ go_version }}.linux-{{ go_arch_map[ansible_architecture] }}.tar.gz"
+    dest: "/usr/local"
+    remote_src: true
+  vars:
+    go_arch_map:
+      x86_64: amd64
+      i386: 386
+      armv7l: armv6l
+      aarch64: arm64
+  when: not go_dir.stat.exists
+
+- name: Set environment variables for Go
+  become: true
+  lineinfile:
+    path: /etc/profile.d/golang.sh
+    line: "{{ item }}"
+    create: true
+  loop:
+    - "export GOROOT=/usr/local/go"
+    - "export GOPATH=$HOME/go"
+    - "export PATH=$PATH:$GOROOT/bin:$GOPATH/bin"
+
+- name: Ensure /etc/profile.d/golang.sh is executable
+  become: true
+  file:
+    path: /etc/profile.d/golang.sh
+    mode: '0755'

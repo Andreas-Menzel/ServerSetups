@@ -12,3 +12,8 @@
       when: ansible_distribution == "Debian"
     - name: setup_packages_dnf
       when: ansible_distribution == "Fedora"
+
+- name: Install GO
+  hosts: all
+  roles:
+    - install_golan
